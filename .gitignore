@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ----------------------------------------------------
+# Environment Variables (Frontend & Backend)
+# ----------------------------------------------------
+.env
+.env.*
+!.env.example

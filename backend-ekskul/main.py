@@ -33,6 +33,7 @@ from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     SECRET_KEY,
     ALGORITHM,
+    get_password_hash,
 )
 
 models.Base.metadata.create_all(bind=engine)
