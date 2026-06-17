@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import logoCitaHati from "../assets/252-SMA_CITA_HATI_EAST_SURABAYA.png"; // <-- Import gambar ditambahkan di sini
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -71,7 +72,7 @@ const LoginAdmin = () => {
         <div className="flex flex-col items-center mb-8 text-center">
           <div className="w-24 h-24 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center p-3 mb-6">
             <img
-              src="src/assets/252-SMA_CITA_HATI_EAST_SURABAYA.png"
+              src={logoCitaHati}
               alt="Cita Hati Logo"
               className="w-full h-full object-contain"
             />
@@ -216,7 +217,7 @@ const LoginAdmin = () => {
             disabled={isLoading}
             className="w-full bg-[#1d3c6a] hover:bg-[#152c4f] text-white text-lg font-bold rounded-2xl py-4 mt-4 transition-all duration-300 shadow-md hover:shadow-xl hover:-translate-y-1 flex items-center justify-center gap-3 group disabled:opacity-50 disabled:hover:translate-y-0"
           >
-            <span>{isLoading ? "Loading..." : "Login to Syste xm"}</span>
+            <span>{isLoading ? "Loading..." : "Login to System"}</span>
             {!isLoading && (
               <svg
                 xmlns="http://www.w3.org/2000/svg"

@@ -46,6 +46,7 @@ origins = [
     "http://localhost:5173",  # Jika menggunakan Vite
     "http://127.0.0.1:5173",  # Alternatif IP untuk Vite
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
 ]
 
 app.add_middleware(

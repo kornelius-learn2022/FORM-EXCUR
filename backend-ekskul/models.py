@@ -52,9 +52,9 @@ class StudentDB(Base):
     __tablename__ = "students"
 
     id_students = Column(Integer, primary_key=True, index=True)
-    student_name = Column(String)
+    student_name = Column(String(100), nullable=False)
     # Karena 'class' tidak bisa dipakai sebagai nama variabel Python, kita gunakan 'kelas'
-    kelas = Column("class", String)
+    kelas = Column("class", String(50), nullable=False)
 
 
 class RegisterExcurDB(Base):
