@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
+import logoCitaHati from "../assets/252-SMA_CITA_HATI_EAST_SURABAYA.png";
+import logoExcur from "../assets/Form excur.png";
 // Mengambil base URL API dari file .env
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -186,7 +187,7 @@ const RegisterPage = () => {
         {/* Sisi Kiri: Ilustrasi */}
         <div className="bg-[#f9fafc] md:w-1/2 flex items-center justify-center p-8 hidden md:flex">
           <img
-            src="src/assets/Form excur.png"
+            src={logoExcur}
             alt="Education Illustration"
             className="w-80 lg:w-96 h-auto object-contain"
           />
@@ -255,7 +256,7 @@ const RegisterPage = () => {
               <div className="flex items-center mb-8">
                 <div className="w-14 h-14 mr-4 flex-shrink-0 flex items-center justify-center">
                   <img
-                    src="src/assets/252-SMA_CITA_HATI_EAST_SURABAYA.png"
+                    src={logoCitaHati}
                     alt="Logo Cita Hati"
                     className="max-w-full max-h-full object-contain"
                   />

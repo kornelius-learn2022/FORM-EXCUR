@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 // Tambahkan ikon Clock untuk status "Pending Selection"
 import { CheckCircle2, XCircle, Clock } from "lucide-react";
-import logoSekolah from "../assets/252-SMA_CITA_HATI_EAST_SURABAYA.png";
+import logoCitaHati from "../assets/252-SMA_CITA_HATI_EAST_SURABAYA.png";
+import logoExcur from "../assets/Form excur.png";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -67,7 +68,7 @@ export default function StatusResultPage() {
         {/* Header Logo */}
         <div className="flex flex-col items-center mb-12">
           <img
-            src={logoSekolah}
+            src={logoCitaHati}
             alt="Logo"
             className="h-20 mb-6 drop-shadow-md"
           />

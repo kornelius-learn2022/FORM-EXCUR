@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ClipboardSignature, FileSearch, ArrowRight } from "lucide-react";
+import logoCitaHati from "../assets/252-SMA_CITA_HATI_EAST_SURABAYA.png"; // <-- Import gambar ditambahkan di sini
 
 export default function LandingPage() {
   return (
@@ -12,7 +13,7 @@ export default function LandingPage() {
         <div className="flex flex-col md:flex-row items-center justify-center md:justify-start gap-8 mb-20 bg-white/50 backdrop-blur-sm p-8 rounded-[2rem] border border-white/50 shadow-sm">
           <div className="flex-shrink-0 p-2 bg-white rounded-2xl shadow-inner">
             <img
-              src="src/assets/Form excur.png"
+              src={logoCitaHati} // <-- Variabel gambar dipanggil di sini
               alt="Cita Hati Logo"
               className="h-28 w-auto object-contain"
             />

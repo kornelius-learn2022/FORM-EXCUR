@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, ChevronRight } from "lucide-react";
-
+import logoCitaHati from "../assets/252-SMA_CITA_HATI_EAST_SURABAYA.png";
+import logoExcur from "../assets/Form excur.png";
 export default function CheckStatusPage() {
   const [noReg, setNoReg] = useState("");
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export default function CheckStatusPage() {
         {/* Sisi Kiri: Ilustrasi */}
         <div className="hidden md:flex w-1/2 flex-col items-center">
           <img
-            src="src/assets/Form excur.png"
+            src={logoExcur}
             alt="Check Status"
             className="w-full max-w-[420px] drop-shadow-2xl"
           />
@@ -36,11 +37,7 @@ export default function CheckStatusPage() {
         {/* Sisi Kanan: Form */}
         <div className="w-full md:w-1/2">
           <div className="flex items-center gap-4 mb-10">
-            <img
-              src="src/assets/252-SMA_CITA_HATI_EAST_SURABAYA.png"
-              alt="Logo"
-              className="h-16"
-            />
+            <img src={logoCitaHati} alt="Logo" className="h-16" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Status Check</h1>
               <p className="text-gray-500 text-sm font-medium">

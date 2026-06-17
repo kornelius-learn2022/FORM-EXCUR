@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { QRCodeCanvas } from "qrcode.react";
 import { toPng } from "html-to-image";
 import logoCitaHati from "../assets/252-SMA_CITA_HATI_EAST_SURABAYA.png";
-
+import logoExcur from "../assets/Form excur.png";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function TicketPage() {
