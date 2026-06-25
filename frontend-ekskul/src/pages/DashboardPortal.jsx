@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // TAMBAHAN: Import navigasi
+import { useNavigate } from "react-router-dom";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import {
@@ -19,16 +19,23 @@ import {
   ChevronRight,
   CalendarDays,
   Save,
+  Menu, // TAMBAHAN UI/UX: Import icon Menu untuk mobile
 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const DashboardPortal = () => {
-  const navigate = useNavigate(); // TAMBAHAN: Inisialisasi hook navigasi
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("registration");
 
   // ==========================================
-  // TAMBAHAN: STATE UNTUK LOADING AWAL (FULL SCREEN)
+  // TAMBAHAN UI/UX: STATE UNTUK SIDEBAR MOBILE & MINIMIZE
+  // ==========================================
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSidebarMinimized, setIsSidebarMinimized] = useState(false);
+
+  // ==========================================
+  // STATE UNTUK LOADING AWAL (FULL SCREEN)
   // ==========================================
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
@@ -37,7 +44,7 @@ const DashboardPortal = () => {
   const [adminPhoto, setAdminPhoto] = useState(null);
 
   // ==========================================
-  // TAMBAHAN: STATE UNTUK MODAL EDIT PROFIL
+  // STATE UNTUK MODAL EDIT PROFIL
   // ==========================================
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileUsername, setProfileUsername] = useState("");
@@ -69,7 +76,6 @@ const DashboardPortal = () => {
   // ==========================================
   const fetchData = async () => {
     setIsLoading(true);
-    // Selalu sertakan token saat mengambil data ke backend
     const token = localStorage.getItem("token");
     const headers = {
       "Content-Type": "application/json",
@@ -135,15 +141,12 @@ const DashboardPortal = () => {
   useEffect(() => {
     const verifyTokenAndLoad = async () => {
       const token = localStorage.getItem("token");
-
-      // Jika tidak ada token sama sekali di localStorage
       if (!token) {
         navigate("/LoginAdmin");
         return;
       }
 
       try {
-        // Tembak endpoint verifikasi token ke FastAPI
         const res = await fetch(`${API_BASE_URL}/api/auth/check-token`, {
           method: "GET",
           headers: {
@@ -152,39 +155,28 @@ const DashboardPortal = () => {
         });
         const data = await res.json();
 
-        // Evaluasi respon dari backend
         if (data.status === "true") {
-          // Token Valid -> Ambil nama/foto dan muat isi tabel
           const storedName = localStorage.getItem("username");
           const storedPhoto = localStorage.getItem("foto");
-
           if (storedName) setAdminName(storedName);
           if (storedPhoto) setAdminPhoto(`${API_BASE_URL}${storedPhoto}`);
-
           fetchData();
         } else if (data.status === "expire") {
-          // Token Kedaluwarsa
           alert("Sesi login Anda telah berakhir. Silakan login kembali.");
           handleLogout();
         } else {
-          // Token Rusak/Salah
           handleLogout();
         }
       } catch (error) {
         console.error("Gagal verifikasi token:", error);
         handleLogout();
       } finally {
-        // Matikan UI Loading Layar Penuh setelah pengecekan selesai
         setIsAuthChecking(false);
       }
     };
-
     verifyTokenAndLoad();
   }, [navigate]);
 
-  // ==========================================
-  // FUNGSI SUBMIT EDIT PROFIL ADMIN
-  // ==========================================
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -192,7 +184,6 @@ const DashboardPortal = () => {
     const idAdmin = localStorage.getItem("id_admin");
     const token = localStorage.getItem("token");
 
-    // Menggunakan FormData untuk mengirim file dan teks
     const formData = new FormData();
     if (profileUsername) formData.append("username", profileUsername);
     if (profilePassword) formData.append("password", profilePassword);
@@ -203,7 +194,6 @@ const DashboardPortal = () => {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
-          // PENTING: Browser akan otomatis menambahkan Content-Type multipart/form-data
         },
         body: formData,
       });
@@ -215,8 +205,6 @@ const DashboardPortal = () => {
 
       if (response.ok) {
         const data = await response.json();
-
-        // Perbarui tampilan dan Local Storage
         localStorage.setItem("username", data.username);
         setAdminName(data.username);
 
@@ -227,9 +215,8 @@ const DashboardPortal = () => {
 
         setIsProfileModalOpen(false);
         setIsSuccessModalOpen(true);
-        setProfilePassword(""); // Bersihkan field password
+        setProfilePassword("");
 
-        // Jika ganti password, minta user login ulang
         if (profilePassword) {
           alert(
             "Password berhasil diubah! Silakan login kembali demi keamanan.",
@@ -247,32 +234,25 @@ const DashboardPortal = () => {
     }
   };
 
-  // ==========================================
-  // STATE UNTUK FILTER, SEARCH & SORT
-  // ==========================================
   const [searchName, setSearchName] = useState("");
   const [filterGrade, setFilterGrade] = useState("");
   const [filterExcur, setFilterExcur] = useState("");
-  const [filterStatus, setFilterStatus] = useState(""); // TAMBAHAN: State Filter Status
+  const [filterStatus, setFilterStatus] = useState("");
   const [searchExcurName, setSearchExcurName] = useState("");
   const [searchTeacherName, setSearchTeacherName] = useState("");
   const [searchStudentName, setSearchStudentName] = useState("");
   const [filterStudentClass, setFilterStudentClass] = useState("");
   const [sortClassOrder, setSortClassOrder] = useState("asc");
 
-  // ==========================================
-  // STATE UNTUK PAGINATION
-  // ==========================================
   const [regCurrentPage, setRegCurrentPage] = useState(1);
   const [excurCurrentPage, setExcurCurrentPage] = useState(1);
   const [teacherCurrentPage, setTeacherCurrentPage] = useState(1);
   const [studentCurrentPage, setStudentCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Reset pagination ke halaman 1 setiap kali filter/search berubah
   useEffect(
     () => setRegCurrentPage(1),
-    [searchName, filterGrade, filterExcur, filterStatus, sortClassOrder], // TAMBAHAN: Reset saat status filter berubah
+    [searchName, filterGrade, filterExcur, filterStatus, sortClassOrder],
   );
   useEffect(() => setExcurCurrentPage(1), [searchExcurName]);
   useEffect(() => setTeacherCurrentPage(1), [searchTeacherName]);
@@ -281,11 +261,6 @@ const DashboardPortal = () => {
     [searchStudentName, filterStudentClass],
   );
 
-  // ==========================================
-  // LOGIKA FILTERING & SORTING (CLIENT-SIDE)
-  // ==========================================
-
-  // 1. REGISTRATION (Filter + Sort)
   const filteredData = registrations.filter((item) => {
     const matchName = item.student_name
       .toLowerCase()
@@ -294,12 +269,10 @@ const DashboardPortal = () => {
     const matchGrade =
       filterGrade === "" ||
       (item.student_class && item.student_class.startsWith(filterGrade));
-    const matchStatus = filterStatus === "" || item.status === filterStatus; // TAMBAHAN: Evaluasi pencocokan status
-
+    const matchStatus = filterStatus === "" || item.status === filterStatus;
     return matchName && matchExcur && matchGrade && matchStatus;
   });
 
-  // Aplikasikan Sortir Kelas
   const processedRegData = [...filteredData].sort((a, b) => {
     const classA = a.student_class || "";
     const classB = b.student_class || "";
@@ -308,17 +281,14 @@ const DashboardPortal = () => {
       : classB.localeCompare(classA);
   });
 
-  // 2. EXTRACURRICULAR (Filter)
   const filteredExcurList = excurOptions.filter((item) =>
     item.excur_name.toLowerCase().includes(searchExcurName.toLowerCase()),
   );
 
-  // 3. TEACHERS (Filter)
   const filteredTeacherList = teachers.filter((item) =>
     item.nama_pengajar.toLowerCase().includes(searchTeacherName.toLowerCase()),
   );
 
-  // 4. STUDENTS (Filter)
   const filteredStudentList = students.filter((item) => {
     const matchName = item.student_name
       .toLowerCase()
@@ -330,9 +300,6 @@ const DashboardPortal = () => {
     return matchName && matchClass;
   });
 
-  // ==========================================
-  // LOGIKA PAGINATION (SLICING)
-  // ==========================================
   const indexOfLastReg = regCurrentPage * itemsPerPage;
   const indexOfFirstReg = indexOfLastReg - itemsPerPage;
   const currentRegs = processedRegData.slice(indexOfFirstReg, indexOfLastReg);
@@ -366,13 +333,9 @@ const DashboardPortal = () => {
     filteredStudentList.length / itemsPerPage,
   );
 
-  // ==========================================
-  // STATE UNTUK MODAL REGISTRATION
-  // ==========================================
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [editData, setEditData] = useState({
     no_register: "",
     student_name: "",
@@ -382,11 +345,8 @@ const DashboardPortal = () => {
     place: "",
   });
 
-  // ==========================================
-  // STATE UNTUK MODAL EXTRACURRICULAR
-  // ==========================================
   const [isExcurModalOpen, setIsExcurModalOpen] = useState(false);
-  const [excurModalMode, setExcurModalMode] = useState("add"); // "add" atau "edit"
+  const [excurModalMode, setExcurModalMode] = useState("add");
   const [excurFormData, setExcurFormData] = useState({
     id_excur: "",
     excur_name: "",
@@ -395,9 +355,6 @@ const DashboardPortal = () => {
     place: "",
   });
 
-  // ==========================================
-  // STATE UNTUK MODAL TEACHERS
-  // ==========================================
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
   const [teacherModalMode, setTeacherModalMode] = useState("add");
   const [teacherFormData, setTeacherFormData] = useState({
@@ -406,11 +363,8 @@ const DashboardPortal = () => {
     id_excur: "",
   });
 
-  // ==========================================
-  // STATE UNTUK MODAL STUDENTS (CRUD & BULK)
-  // ==========================================
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
-  const [studentModalMode, setStudentModalMode] = useState("add"); // "add", "edit", atau "bulk"
+  const [studentModalMode, setStudentModalMode] = useState("add");
   const [studentFormData, setStudentFormData] = useState({
     id_students: "",
     student_name: "",
@@ -418,9 +372,6 @@ const DashboardPortal = () => {
   });
   const [bulkStudentText, setBulkStudentText] = useState("");
 
-  // ==========================================
-  // STATE UNTUK SETTINGS TANGGAL
-  // ==========================================
   const [regSettings, setRegSettings] = useState({
     selection_start: "",
     selection_end: "",
@@ -428,9 +379,6 @@ const DashboardPortal = () => {
     direct_end: "",
   });
 
-  // ==========================================
-  // FUNGSI SUBMIT UNTUK SETTINGS
-  // ==========================================
   const submitSettings = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -480,9 +428,6 @@ const DashboardPortal = () => {
     }
   };
 
-  // ==========================================
-  // FUNGSI ACTION REGISTRATION (EDIT & DELETE)
-  // ==========================================
   const handleEditClick = (row) => {
     const currentExcur = excurOptions.find(
       (ex) => ex.excur_name === row.excur_name,
@@ -573,9 +518,6 @@ const DashboardPortal = () => {
     }
   };
 
-  // ==========================================
-  // FUNGSI ACTION EXTRACURRICULAR (ADD, EDIT & DELETE)
-  // ==========================================
   const handleAddExcurClick = () => {
     setExcurModalMode("add");
     setExcurFormData({
@@ -692,9 +634,6 @@ const DashboardPortal = () => {
     }
   };
 
-  // ==========================================
-  // FUNGSI ACTION TEACHERS (ADD, EDIT, DELETE)
-  // ==========================================
   const handleAddTeacherClick = () => {
     setTeacherModalMode("add");
     setTeacherFormData({ id_pengajar: "", nama_pengajar: "", id_excur: "" });
@@ -800,9 +739,6 @@ const DashboardPortal = () => {
     }
   };
 
-  // ==========================================
-  // FUNGSI ACTION STUDENTS (CRUD & BULK)
-  // ==========================================
   const handleAddStudentClick = () => {
     setStudentModalMode("add");
     setStudentFormData({ id_students: "", student_name: "", kelas: "" });
@@ -939,9 +875,6 @@ const DashboardPortal = () => {
     }
   };
 
-  // ==========================================
-  // FUNGSI DOWNLOAD EXCEL
-  // ==========================================
   const handleDownloadExcel = async () => {
     if (processedRegData.length === 0) {
       alert("Tidak ada data untuk diunduh.");
@@ -1066,7 +999,7 @@ const DashboardPortal = () => {
     );
   };
 
-  // Reusable Pagination UI Component
+  // TAMBAHAN UI/UX: Modifikasi tampilan teks pagination agar wrap di mobile
   const renderPagination = (
     currentPage,
     totalPages,
@@ -1076,8 +1009,8 @@ const DashboardPortal = () => {
     currentItemsCount,
   ) => {
     return (
-      <div className="flex items-center justify-between px-6 py-4 bg-slate-50/50 border-t border-slate-100">
-        <span className="text-sm text-slate-500 font-medium">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-slate-50/50 border-t border-slate-100">
+        <span className="text-sm text-slate-500 font-medium text-center sm:text-left">
           Showing{" "}
           <span className="font-bold text-slate-700">
             {totalItems === 0 ? 0 : indexOfFirstItem + 1}
@@ -1112,9 +1045,6 @@ const DashboardPortal = () => {
     );
   };
 
-  // ==========================================
-  // TAMBAHAN: RENDER LOADING AWAL (FULL SCREEN)
-  // ==========================================
   if (isAuthChecking) {
     return (
       <div className="h-screen w-screen bg-[#eef3f8] flex flex-col items-center justify-center">
@@ -1146,11 +1076,78 @@ const DashboardPortal = () => {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-[#eef3f8] flex font-sans text-[#0f172a] relative">
+    // TAMBAHAN UI/UX: Perubahan struktur div terluar untuk menampung mobile header
+    <div className="h-screen flex flex-col md:flex-row overflow-hidden bg-[#eef3f8] font-sans text-[#0f172a] relative">
+      {/* ================= MOBILE HEADER ================= */}
+      {/* Ditampilkan hanya di layar kecil (handphone) */}
+      <div className="md:hidden flex items-center justify-between bg-white px-6 py-4 shadow-sm z-20">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-[#e3f2fd] flex items-center justify-center overflow-hidden border-2 border-[#1d3c6a]">
+            {adminPhoto ? (
+              <img
+                src={adminPhoto}
+                alt="Admin"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-sm font-extrabold text-[#38aef0] uppercase">
+                {adminName.charAt(0)}
+              </span>
+            )}
+          </div>
+          <h2 className="font-extrabold text-[#1d3c6a] text-lg">Portal</h2>
+        </div>
+        <button
+          onClick={() => setIsMobileSidebarOpen(true)}
+          className="p-2 bg-slate-50 text-[#1d3c6a] rounded-lg border border-slate-200"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+
+      {/* ================= OVERLAY MOBILE SIDEBAR ================= */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* ================= SIDEBAR ================= */}
-      <aside className="w-72 bg-white shadow-[1px_0_20px_rgb(0,0,0,0.03)] flex flex-col z-10 rounded-r-[2rem]">
-        <div className="p-8 flex flex-col items-center border-b border-slate-100">
-          <div className="w-24 h-24 rounded-full bg-[#e3f2fd] border-4 border-white shadow-md flex items-center justify-center mb-4 overflow-hidden">
+      {/* TAMBAHAN UI/UX: Kelas dinamis untuk slide-in mobile & minimize desktop */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 bg-white shadow-[1px_0_20px_rgb(0,0,0,0.03)] flex flex-col rounded-r-[2rem] transform transition-all duration-300 ease-in-out
+          ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
+          md:relative md:translate-x-0
+          ${isSidebarMinimized ? "w-24" : "w-72"}
+        `}
+      >
+        {/* Tombol Minimize/Maximize (Hanya Desktop) */}
+        <button
+          onClick={() => setIsSidebarMinimized(!isSidebarMinimized)}
+          className="hidden md:flex absolute -right-3.5 top-12 bg-white border border-slate-200 rounded-full p-1.5 shadow-md text-slate-500 hover:text-[#1d3c6a] hover:bg-slate-50 z-50 transition-colors"
+        >
+          {isSidebarMinimized ? (
+            <ChevronRight size={16} />
+          ) : (
+            <ChevronLeft size={16} />
+          )}
+        </button>
+
+        <div
+          className={`p-8 flex flex-col items-center border-b border-slate-100 ${isSidebarMinimized ? "px-2" : ""}`}
+        >
+          {/* Tombol Close Sidebar Mobile */}
+          <button
+            className="md:hidden absolute top-4 right-4 text-slate-400 hover:text-red-500"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          >
+            <X size={24} />
+          </button>
+
+          <div
+            className={`${isSidebarMinimized ? "w-12 h-12 mb-2" : "w-24 h-24 mb-4"} rounded-full bg-[#e3f2fd] border-4 border-white shadow-md flex items-center justify-center overflow-hidden transition-all duration-300`}
+          >
             {adminPhoto ? (
               <img
                 src={adminPhoto}
@@ -1158,118 +1155,110 @@ const DashboardPortal = () => {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <span className="text-3xl font-extrabold text-[#38aef0] uppercase">
+              <span
+                className={`${isSidebarMinimized ? "text-xl" : "text-3xl"} font-extrabold text-[#38aef0] uppercase`}
+              >
                 {adminName.charAt(0)}
               </span>
             )}
           </div>
-          <h2 className="text-2xl font-extrabold text-[#1d3c6a] capitalize">
-            {adminName}
-          </h2>
-          <p className="text-slate-400 text-sm font-medium mt-1">
-            School Portal
-          </p>
+
+          {!isSidebarMinimized && (
+            <>
+              <h2 className="text-2xl font-extrabold text-[#1d3c6a] capitalize text-center truncate w-full">
+                {adminName}
+              </h2>
+              <p className="text-slate-400 text-sm font-medium mt-1">
+                School Portal
+              </p>
+            </>
+          )}
 
           <button
             onClick={() => {
               setProfileUsername(adminName);
               setIsProfileModalOpen(true);
             }}
-            className="mt-3 flex items-center gap-1 text-xs font-bold text-[#38aef0] hover:text-[#1d3c6a] transition-colors bg-blue-50 px-3 py-1.5 rounded-full"
+            className={`mt-3 flex items-center justify-center gap-1 font-bold text-[#38aef0] hover:text-[#1d3c6a] transition-colors bg-blue-50 rounded-full
+              ${isSidebarMinimized ? "p-2" : "px-3 py-1.5 text-xs"}
+            `}
+            title="Edit Profile"
           >
-            <Edit size={12} /> Edit Profile
+            <Edit size={isSidebarMinimized ? 16 : 12} />
+            {!isSidebarMinimized && "Edit Profile"}
           </button>
         </div>
-        <nav className="flex-1 p-6 space-y-2">
-          <button
-            onClick={() => setActiveTab("registration")}
-            className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all ${
-              activeTab === "registration"
-                ? "bg-[#e3f2fd] text-[#1d3c6a]"
-                : "text-slate-500 hover:bg-slate-50 hover:text-[#1d3c6a]"
-            }`}
-          >
-            <Users size={20} /> Registrations
-          </button>
 
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all ${
-              activeTab === "settings"
-                ? "bg-[#e3f2fd] text-[#1d3c6a]"
-                : "text-slate-500 hover:bg-slate-50 hover:text-[#1d3c6a]"
-            }`}
-          >
-            <CalendarDays size={20} /> Phase Settings
-          </button>
-
-          <button
-            onClick={() => setActiveTab("students")}
-            className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all ${
-              activeTab === "students"
-                ? "bg-[#e3f2fd] text-[#1d3c6a]"
-                : "text-slate-500 hover:bg-slate-50 hover:text-[#1d3c6a]"
-            }`}
-          >
-            <Users size={20} /> Students List
-          </button>
-
-          <button
-            onClick={() => setActiveTab("extracurricular")}
-            className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all ${
-              activeTab === "extracurricular"
-                ? "bg-[#e3f2fd] text-[#1d3c6a]"
-                : "text-slate-500 hover:bg-slate-50 hover:text-[#1d3c6a]"
-            }`}
-          >
-            <BookOpen size={20} /> Extracurriculars
-          </button>
-
-          <button
-            onClick={() => setActiveTab("teachers")}
-            className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all ${
-              activeTab === "teachers"
-                ? "bg-[#e3f2fd] text-[#1d3c6a]"
-                : "text-slate-500 hover:bg-slate-50 hover:text-[#1d3c6a]"
-            }`}
-          >
-            <GraduationCap size={20} /> Teachers
-          </button>
+        <nav className="flex-1 p-4 md:p-6 space-y-2 overflow-y-auto overflow-x-hidden">
+          {[
+            { id: "registration", icon: Users, label: "Registrations" },
+            { id: "settings", icon: CalendarDays, label: "Phase Settings" },
+            { id: "students", icon: Users, label: "Students List" },
+            {
+              id: "extracurricular",
+              icon: BookOpen,
+              label: "Extracurriculars",
+            },
+            { id: "teachers", icon: GraduationCap, label: "Teachers" },
+          ].map((item) => (
+            <button
+              key={item.id}
+              title={item.label}
+              onClick={() => {
+                setActiveTab(item.id);
+                if (window.innerWidth < 768) setIsMobileSidebarOpen(false); // Auto close sidebar on mobile click
+              }}
+              className={`w-full flex items-center ${isSidebarMinimized ? "justify-center px-0" : "gap-4 px-6"} py-4 rounded-2xl font-bold transition-all ${
+                activeTab === item.id
+                  ? "bg-[#e3f2fd] text-[#1d3c6a]"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-[#1d3c6a]"
+              }`}
+            >
+              <item.icon size={20} className="shrink-0" />
+              {!isSidebarMinimized && (
+                <span className="truncate">{item.label}</span>
+              )}
+            </button>
+          ))}
         </nav>
 
-        <div className="p-6">
+        <div className="p-4 md:p-6 border-t border-slate-100">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-6 py-4 text-red-500 hover:bg-red-50 rounded-2xl font-bold transition-all"
+            title="Logout"
+            className={`w-full flex items-center ${isSidebarMinimized ? "justify-center px-0" : "justify-center gap-2 px-6"} py-4 text-red-500 hover:bg-red-50 rounded-2xl font-bold transition-all`}
           >
-            <LogOut size={20} /> Logout
+            <LogOut size={20} className="shrink-0" />
+            {!isSidebarMinimized && "Logout"}
           </button>
         </div>
       </aside>
 
       {/* ================= MAIN CONTENT ================= */}
-      <main className="flex-1 p-10 flex flex-col gap-8 overflow-y-auto">
+      {/* TAMBAHAN UI/UX: Padding disesuaikan untuk layar kecil (p-4 md:p-10) */}
+      <main className="flex-1 p-4 md:p-10 flex flex-col gap-6 md:gap-8 overflow-y-auto">
         {/* ================= TAB REGISTRATIONS ================= */}
         {activeTab === "registration" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-8">
-            <div className="flex justify-between items-end">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6 md:gap-8">
+            {/* TAMBAHAN UI/UX: Header responsif bertumpuk di mobile */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
               <div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1d3c6a] tracking-tight">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1d3c6a] tracking-tight">
                   Registration Data
                 </h1>
-                <p className="text-lg text-slate-500 font-medium mt-1">
+                <p className="text-sm sm:text-lg text-slate-500 font-medium mt-1">
                   Manage extracurricular registrations and selections.
                 </p>
               </div>
               <button
                 onClick={handleDownloadExcel}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-green-600/30 transition-all flex items-center gap-2"
+                className="w-full sm:w-auto justify-center bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-green-600/30 transition-all flex items-center gap-2"
               >
                 <Download size={20} /> Export to Excel
               </button>
             </div>
 
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex flex-col gap-6">
+            <div className="bg-white rounded-[2rem] p-4 md:p-6 shadow-sm border border-slate-100 flex flex-col gap-4 md:gap-6">
               <div className="relative">
                 <Search
                   className="absolute left-4 top-3.5 text-slate-400"
@@ -1283,8 +1272,9 @@ const DashboardPortal = () => {
                   className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] focus:bg-white transition-all font-medium text-slate-700"
                 />
               </div>
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
+              {/* TAMBAHAN UI/UX: Layout filter diubah menjadi grid yang rapih di mobile & desktop */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
                     <Filter size={14} /> Filter Grade
                   </label>
@@ -1302,14 +1292,14 @@ const DashboardPortal = () => {
                     <option value="6">Grade 6</option>
                   </select>
                 </div>
-                <div className="flex-1">
+                <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
-                    <Filter size={14} /> Filter Extracurricular
+                    <Filter size={14} /> Filter Excur
                   </label>
                   <select
                     value={filterExcur}
                     onChange={(e) => setFilterExcur(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium cursor-pointer"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium cursor-pointer truncate"
                   >
                     <option value="">All Extracurriculars</option>
                     {excurOptions.map((excur) => (
@@ -1319,8 +1309,7 @@ const DashboardPortal = () => {
                     ))}
                   </select>
                 </div>
-                {/* TAMBAHAN: FILTER STATUS */}
-                <div className="flex-1">
+                <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
                     <Filter size={14} /> Filter Status
                   </label>
@@ -1340,7 +1329,8 @@ const DashboardPortal = () => {
 
             <div className="bg-white rounded-[2rem] shadow-sm overflow-hidden border border-slate-100 flex flex-col">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                {/* TAMBAHAN UI/UX: Tambah whitespace-nowrap pada thead untuk menghindari header terlipat aneh */}
+                <table className="w-full text-left border-collapse whitespace-nowrap min-w-max">
                   <thead>
                     <tr className="bg-[#1d3c6a] text-white text-xs uppercase tracking-wider">
                       <th className="px-6 py-4 font-bold rounded-tl-[2rem]">
@@ -1355,7 +1345,6 @@ const DashboardPortal = () => {
                             prev === "asc" ? "desc" : "asc",
                           )
                         }
-                        title="Sort by Class"
                       >
                         <div className="flex items-center gap-2">
                           Class
@@ -1428,14 +1417,12 @@ const DashboardPortal = () => {
                               <button
                                 onClick={() => handleEditClick(row)}
                                 className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Edit"
                               >
                                 <Edit size={18} />
                               </button>
                               <button
                                 onClick={() => handleDelete(row.no_register)}
                                 className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete"
                               >
                                 <Trash2 size={18} />
                               </button>
@@ -1462,29 +1449,32 @@ const DashboardPortal = () => {
 
         {/* ================= TAB SETTINGS ================= */}
         {activeTab === "settings" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-8 max-w-4xl">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6 md:gap-8 max-w-4xl">
             <div>
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1d3c6a] tracking-tight">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1d3c6a] tracking-tight">
                 Registration Phase Settings
               </h1>
-              <p className="text-lg text-slate-500 font-medium mt-1">
+              <p className="text-sm sm:text-lg text-slate-500 font-medium mt-1">
                 Manage the active dates for Selection and Direct Entry phases.
               </p>
             </div>
 
-            <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100">
-              <form onSubmit={submitSettings} className="space-y-8">
-                <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
+            <div className="bg-white rounded-[2rem] p-4 md:p-8 shadow-sm border border-slate-100">
+              <form
+                onSubmit={submitSettings}
+                className="space-y-6 md:space-y-8"
+              >
+                <div className="bg-blue-50/50 p-4 md:p-6 rounded-2xl border border-blue-100">
                   <div className="mb-4">
-                    <h3 className="text-xl font-bold text-[#1d3c6a] mb-1">
+                    <h3 className="text-lg md:text-xl font-bold text-[#1d3c6a] mb-1">
                       Selection Phase
                     </h3>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-xs md:text-sm text-slate-500">
                       Set the timeline for extracurriculars that require
                       selection.
                     </p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                         Selection Start Date
@@ -1520,17 +1510,17 @@ const DashboardPortal = () => {
                   </div>
                 </div>
 
-                <div className="bg-green-50/50 p-6 rounded-2xl border border-green-100">
+                <div className="bg-green-50/50 p-4 md:p-6 rounded-2xl border border-green-100">
                   <div className="mb-4">
-                    <h3 className="text-xl font-bold text-[#1d3c6a] mb-1">
+                    <h3 className="text-lg md:text-xl font-bold text-[#1d3c6a] mb-1">
                       Direct Entry Phase
                     </h3>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-xs md:text-sm text-slate-500">
                       Set the timeline for extracurriculars that do not require
                       selection.
                     </p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                         Direct Start Date
@@ -1570,7 +1560,7 @@ const DashboardPortal = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold py-3.5 px-8 rounded-xl shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
+                    className="w-full sm:w-auto justify-center bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold py-3.5 px-8 rounded-xl shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
                   >
                     <Save size={20} />{" "}
                     {isSubmitting ? "Saving..." : "Save Settings"}
@@ -1583,34 +1573,33 @@ const DashboardPortal = () => {
 
         {/* ================= TAB STUDENTS ================= */}
         {activeTab === "students" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-8">
-            <div className="flex justify-between items-end">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6 md:gap-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
               <div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1d3c6a] tracking-tight">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1d3c6a] tracking-tight">
                   Students Management
                 </h1>
-                <p className="text-lg text-slate-500 font-medium mt-1">
-                  Manage student profiles, search by classes, or import bulk
-                  records.
+                <p className="text-sm sm:text-lg text-slate-500 font-medium mt-1">
+                  Manage student profiles or import bulk records.
                 </p>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                 <button
                   onClick={handleBulkStudentClick}
-                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center gap-2"
+                  className="w-full sm:w-auto justify-center bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center gap-2"
                 >
                   <Plus size={20} /> Bulk Import
                 </button>
                 <button
                   onClick={handleAddStudentClick}
-                  className="bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center gap-2"
+                  className="w-full sm:w-auto justify-center bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center gap-2"
                 >
                   <Plus size={20} /> Add Student
                 </button>
               </div>
             </div>
 
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex flex-col gap-4">
+            <div className="bg-white rounded-[2rem] p-4 md:p-6 shadow-sm border border-slate-100 flex flex-col gap-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="relative">
                   <Search
@@ -1622,7 +1611,7 @@ const DashboardPortal = () => {
                     placeholder="Search student by name..."
                     value={searchStudentName}
                     onChange={(e) => setSearchStudentName(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] focus:bg-white transition-all font-medium text-slate-700"
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0]"
                   />
                 </div>
                 <div className="relative">
@@ -1635,7 +1624,7 @@ const DashboardPortal = () => {
                     placeholder="Filter by Class (e.g. 1A, 2B)..."
                     value={filterStudentClass}
                     onChange={(e) => setFilterStudentClass(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] focus:bg-white transition-all font-medium text-slate-700"
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0]"
                   />
                 </div>
               </div>
@@ -1643,7 +1632,7 @@ const DashboardPortal = () => {
 
             <div className="bg-white rounded-[2rem] shadow-sm overflow-hidden border border-slate-100 flex flex-col">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-collapse whitespace-nowrap min-w-max">
                   <thead>
                     <tr className="bg-[#1d3c6a] text-white text-xs uppercase tracking-wider">
                       <th className="px-6 py-4 font-bold rounded-tl-[2rem]">
@@ -1661,27 +1650,21 @@ const DashboardPortal = () => {
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {isLoading ? (
                       <tr>
-                        <td
-                          colSpan="4"
-                          className="text-center py-10 text-slate-500"
-                        >
-                          Loading data...
+                        <td colSpan="4" className="text-center py-10">
+                          Loading...
                         </td>
                       </tr>
                     ) : currentStudents.length === 0 ? (
                       <tr>
-                        <td
-                          colSpan="4"
-                          className="text-center py-10 text-slate-500"
-                        >
-                          No student data found.
+                        <td colSpan="4" className="text-center py-10">
+                          No data
                         </td>
                       </tr>
                     ) : (
                       currentStudents.map((row, index) => (
                         <tr
                           key={row.id_students}
-                          className="hover:bg-slate-50/50 transition-colors"
+                          className="hover:bg-slate-50/50"
                         >
                           <td className="px-6 py-4 font-bold text-slate-400">
                             {indexOfFirstStudent + index + 1}
@@ -1698,8 +1681,7 @@ const DashboardPortal = () => {
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => handleEditStudentClick(row)}
-                                className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Edit Student"
+                                className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"
                               >
                                 <Edit size={18} />
                               </button>
@@ -1710,8 +1692,7 @@ const DashboardPortal = () => {
                                     row.student_name,
                                   )
                                 }
-                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete Student"
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
                               >
                                 <Trash2 size={18} />
                               </button>
@@ -1738,25 +1719,25 @@ const DashboardPortal = () => {
 
         {/* ================= TAB EXTRACURRICULAR ================= */}
         {activeTab === "extracurricular" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-8">
-            <div className="flex justify-between items-end">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6 md:gap-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
               <div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1d3c6a] tracking-tight">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1d3c6a] tracking-tight">
                   Extracurricular List
                 </h1>
-                <p className="text-lg text-slate-500 font-medium mt-1">
+                <p className="text-sm sm:text-lg text-slate-500 font-medium mt-1">
                   Manage extracurricular programs, quotas, and schedules.
                 </p>
               </div>
               <button
                 onClick={handleAddExcurClick}
-                className="bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center gap-2"
+                className="w-full sm:w-auto justify-center bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center gap-2"
               >
                 <Plus size={20} /> Add Program
               </button>
             </div>
 
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+            <div className="bg-white rounded-[2rem] p-4 md:p-6 shadow-sm border border-slate-100">
               <div className="relative">
                 <Search
                   className="absolute left-4 top-3.5 text-slate-400"
@@ -1767,14 +1748,14 @@ const DashboardPortal = () => {
                   placeholder="Search extracurricular by name..."
                   value={searchExcurName}
                   onChange={(e) => setSearchExcurName(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] focus:bg-white transition-all font-medium text-slate-700"
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0]"
                 />
               </div>
             </div>
 
             <div className="bg-white rounded-[2rem] shadow-sm overflow-hidden border border-slate-100 flex flex-col">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-collapse whitespace-nowrap min-w-max">
                   <thead>
                     <tr className="bg-[#1d3c6a] text-white text-xs uppercase tracking-wider">
                       <th className="px-6 py-4 font-bold rounded-tl-[2rem]">
@@ -1794,28 +1775,19 @@ const DashboardPortal = () => {
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {isLoading ? (
                       <tr>
-                        <td
-                          colSpan="6"
-                          className="text-center py-10 text-slate-500"
-                        >
-                          Loading data...
+                        <td colSpan="6" className="text-center py-10">
+                          Loading...
                         </td>
                       </tr>
                     ) : currentExcurs.length === 0 ? (
                       <tr>
-                        <td
-                          colSpan="6"
-                          className="text-center py-10 text-slate-500"
-                        >
-                          No extracurricular data found.
+                        <td colSpan="6" className="text-center py-10">
+                          No data
                         </td>
                       </tr>
                     ) : (
                       currentExcurs.map((row, index) => (
-                        <tr
-                          key={row.id_excur}
-                          className="hover:bg-slate-50/50 transition-colors"
-                        >
+                        <tr key={row.id_excur} className="hover:bg-slate-50/50">
                           <td className="px-6 py-4 font-bold text-slate-400">
                             {indexOfFirstExcur + index + 1}
                           </td>
@@ -1839,8 +1811,7 @@ const DashboardPortal = () => {
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => handleExcurEditClick(row)}
-                                className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Edit Program"
+                                className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"
                               >
                                 <Edit size={18} />
                               </button>
@@ -1851,8 +1822,7 @@ const DashboardPortal = () => {
                                     row.excur_name,
                                   )
                                 }
-                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete Program"
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
                               >
                                 <Trash2 size={18} />
                               </button>
@@ -1879,25 +1849,25 @@ const DashboardPortal = () => {
 
         {/* ================= TAB TEACHERS ================= */}
         {activeTab === "teachers" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-8">
-            <div className="flex justify-between items-end">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6 md:gap-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
               <div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1d3c6a] tracking-tight">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1d3c6a] tracking-tight">
                   Teachers List
                 </h1>
-                <p className="text-lg text-slate-500 font-medium mt-1">
+                <p className="text-sm sm:text-lg text-slate-500 font-medium mt-1">
                   Manage teachers and assign them to extracurriculars.
                 </p>
               </div>
               <button
                 onClick={handleAddTeacherClick}
-                className="bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center gap-2"
+                className="w-full sm:w-auto justify-center bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center gap-2"
               >
                 <Plus size={20} /> Add Teacher
               </button>
             </div>
 
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+            <div className="bg-white rounded-[2rem] p-4 md:p-6 shadow-sm border border-slate-100">
               <div className="relative">
                 <Search
                   className="absolute left-4 top-3.5 text-slate-400"
@@ -1908,14 +1878,14 @@ const DashboardPortal = () => {
                   placeholder="Search teacher by name..."
                   value={searchTeacherName}
                   onChange={(e) => setSearchTeacherName(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] focus:bg-white transition-all font-medium text-slate-700"
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0]"
                 />
               </div>
             </div>
 
             <div className="bg-white rounded-[2rem] shadow-sm overflow-hidden border border-slate-100 flex flex-col">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-collapse whitespace-nowrap min-w-max">
                   <thead>
                     <tr className="bg-[#1d3c6a] text-white text-xs uppercase tracking-wider">
                       <th className="px-6 py-4 font-bold rounded-tl-[2rem]">
@@ -1933,27 +1903,21 @@ const DashboardPortal = () => {
                   <tbody className="divide-y divide-slate-100 text-sm">
                     {isLoading ? (
                       <tr>
-                        <td
-                          colSpan="4"
-                          className="text-center py-10 text-slate-500"
-                        >
-                          Loading data...
+                        <td colSpan="4" className="text-center py-10">
+                          Loading...
                         </td>
                       </tr>
                     ) : currentTeachers.length === 0 ? (
                       <tr>
-                        <td
-                          colSpan="4"
-                          className="text-center py-10 text-slate-500"
-                        >
-                          No teacher data found.
+                        <td colSpan="4" className="text-center py-10">
+                          No data
                         </td>
                       </tr>
                     ) : (
                       currentTeachers.map((row, index) => (
                         <tr
                           key={row.id_pengajar}
-                          className="hover:bg-slate-50/50 transition-colors"
+                          className="hover:bg-slate-50/50"
                         >
                           <td className="px-6 py-4 font-bold text-slate-400">
                             {indexOfFirstTeacher + index + 1}
@@ -1976,8 +1940,7 @@ const DashboardPortal = () => {
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => handleEditTeacherClick(row)}
-                                className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Edit Teacher"
+                                className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"
                               >
                                 <Edit size={18} />
                               </button>
@@ -1988,8 +1951,7 @@ const DashboardPortal = () => {
                                     row.nama_pengajar,
                                   )
                                 }
-                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete Teacher"
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
                               >
                                 <Trash2 size={18} />
                               </button>
@@ -2019,22 +1981,22 @@ const DashboardPortal = () => {
       {/* MODAL EDIT REGISTRATION */}
       {/* ========================================== */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-lg w-full mx-4 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in duration-200 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-[#1d3c6a]">
+              <h2 className="text-xl md:text-2xl font-bold text-[#1d3c6a]">
                 Edit Registration
               </h2>
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="text-slate-400 hover:text-red-500 transition-colors"
+                className="text-slate-400 hover:text-red-500"
               >
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={submitEdit} className="space-y-5">
+            <form onSubmit={submitEdit} className="space-y-4 md:space-y-5">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                   Student Name
                 </label>
                 <input
@@ -2045,7 +2007,7 @@ const DashboardPortal = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                   Extracurricular
                 </label>
                 <select
@@ -2054,7 +2016,7 @@ const DashboardPortal = () => {
                     setEditData({ ...editData, id_excur: e.target.value })
                   }
                   required
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0]"
                 >
                   <option value="">Select Extracurricular</option>
                   {excurOptions.map((excur) => (
@@ -2069,7 +2031,7 @@ const DashboardPortal = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                   Status
                 </label>
                 <select
@@ -2078,16 +2040,16 @@ const DashboardPortal = () => {
                     setEditData({ ...editData, status: e.target.value })
                   }
                   required
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0]"
                 >
                   <option value="Accepted">Accepted</option>
                   <option value="Pending Selection">Pending Selection</option>
                   <option value="Rejected">Rejected</option>
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                     Selection Date
                   </label>
                   <input
@@ -2099,11 +2061,11 @@ const DashboardPortal = () => {
                         selection_date: e.target.value,
                       })
                     }
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                     Place
                   </label>
                   <input
@@ -2113,22 +2075,22 @@ const DashboardPortal = () => {
                     onChange={(e) =>
                       setEditData({ ...editData, place: e.target.value })
                     }
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0]"
                   />
                 </div>
               </div>
-              <div className="pt-4 flex gap-4">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors"
+                  className="w-full sm:flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-3 px-4 bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold rounded-xl transition-colors disabled:opacity-50"
+                  className="w-full sm:flex-1 py-3 px-4 bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold rounded-xl disabled:opacity-50"
                 >
                   {isSubmitting ? "Saving..." : "Save Changes"}
                 </button>
@@ -2142,22 +2104,22 @@ const DashboardPortal = () => {
       {/* MODAL ADD / EDIT EXTRACURRICULAR */}
       {/* ========================================== */}
       {isExcurModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-lg w-full mx-4 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in duration-200 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-[#1d3c6a]">
+              <h2 className="text-xl md:text-2xl font-bold text-[#1d3c6a]">
                 {excurModalMode === "add" ? "Add New Program" : "Edit Program"}
               </h2>
               <button
                 onClick={() => setIsExcurModalOpen(false)}
-                className="text-slate-400 hover:text-red-500 transition-colors"
+                className="text-slate-400 hover:text-red-500"
               >
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={submitExcurForm} className="space-y-5">
+            <form onSubmit={submitExcurForm} className="space-y-4 md:space-y-5">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                   Program Name
                 </label>
                 <input
@@ -2170,11 +2132,11 @@ const DashboardPortal = () => {
                     })
                   }
                   required
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-bold"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0] font-bold"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                   Total Quota
                 </label>
                 <input
@@ -2188,12 +2150,12 @@ const DashboardPortal = () => {
                     })
                   }
                   required
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0]"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                     Default Selection Date
                   </label>
                   <input
@@ -2205,11 +2167,11 @@ const DashboardPortal = () => {
                         selection_date: e.target.value,
                       })
                     }
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                     Default Place
                   </label>
                   <input
@@ -2222,22 +2184,22 @@ const DashboardPortal = () => {
                         place: e.target.value,
                       })
                     }
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium"
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0]"
                   />
                 </div>
               </div>
-              <div className="pt-4 flex gap-4">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
                   onClick={() => setIsExcurModalOpen(false)}
-                  className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors"
+                  className="w-full sm:flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-3 px-4 bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold rounded-xl transition-colors disabled:opacity-50"
+                  className="w-full sm:flex-1 py-3 px-4 bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold rounded-xl disabled:opacity-50"
                 >
                   {isSubmitting ? "Saving..." : "Save Changes"}
                 </button>
@@ -2251,24 +2213,27 @@ const DashboardPortal = () => {
       {/* MODAL ADD / EDIT TEACHER */}
       {/* ========================================== */}
       {isTeacherModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-[#1d3c6a]">
+              <h2 className="text-xl md:text-2xl font-bold text-[#1d3c6a]">
                 {teacherModalMode === "add"
                   ? "Add New Teacher"
                   : "Edit Teacher"}
               </h2>
               <button
                 onClick={() => setIsTeacherModalOpen(false)}
-                className="text-slate-400 hover:text-red-500 transition-colors"
+                className="text-slate-400 hover:text-red-500"
               >
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={submitTeacherForm} className="space-y-5">
+            <form
+              onSubmit={submitTeacherForm}
+              className="space-y-4 md:space-y-5"
+            >
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                   Teacher Name
                 </label>
                 <input
@@ -2281,11 +2246,11 @@ const DashboardPortal = () => {
                     })
                   }
                   required
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-bold"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0] font-bold"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                   Assign to Extracurricular
                 </label>
                 <select
@@ -2296,7 +2261,7 @@ const DashboardPortal = () => {
                       id_excur: e.target.value,
                     })
                   }
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0]"
                 >
                   <option value="">- Unassigned (No Extracurricular) -</option>
                   {excurOptions.map((excur) => (
@@ -2306,19 +2271,18 @@ const DashboardPortal = () => {
                   ))}
                 </select>
               </div>
-
-              <div className="pt-4 flex gap-4">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
                   onClick={() => setIsTeacherModalOpen(false)}
-                  className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors"
+                  className="w-full sm:flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-3 px-4 bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold rounded-xl transition-colors disabled:opacity-50"
+                  className="w-full sm:flex-1 py-3 px-4 bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold rounded-xl disabled:opacity-50"
                 >
                   {isSubmitting
                     ? "Saving..."
@@ -2336,10 +2300,10 @@ const DashboardPortal = () => {
       {/* MODAL ADD / EDIT / BULK STUDENTS */}
       {/* ========================================== */}
       {isStudentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-lg w-full mx-4 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in duration-200 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-[#1d3c6a]">
+              <h2 className="text-xl md:text-2xl font-bold text-[#1d3c6a]">
                 {studentModalMode === "bulk"
                   ? "Bulk Import Students"
                   : studentModalMode === "add"
@@ -2348,15 +2312,18 @@ const DashboardPortal = () => {
               </h2>
               <button
                 onClick={() => setIsStudentModalOpen(false)}
-                className="text-slate-400 hover:text-red-500 transition-colors"
+                className="text-slate-400 hover:text-red-500"
               >
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={submitStudentForm} className="space-y-5">
+            <form
+              onSubmit={submitStudentForm}
+              className="space-y-4 md:space-y-5"
+            >
               {studentModalMode === "bulk" ? (
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                     JSON Payload Data (Array of Object)
                   </label>
                   <p className="text-[11px] text-slate-400 mb-2">
@@ -2368,13 +2335,13 @@ const DashboardPortal = () => {
                     value={bulkStudentText}
                     onChange={(e) => setBulkStudentText(e.target.value)}
                     required
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#38aef0] focus:bg-white"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-[#38aef0]"
                   ></textarea>
                 </div>
               ) : (
                 <>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                       Student Name
                     </label>
                     <input
@@ -2387,11 +2354,11 @@ const DashboardPortal = () => {
                         })
                       }
                       required
-                      className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-bold"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0] font-bold"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                       Class Name (Kelas)
                     </label>
                     <input
@@ -2405,24 +2372,23 @@ const DashboardPortal = () => {
                         })
                       }
                       required
-                      className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0]"
                     />
                   </div>
                 </>
               )}
-
-              <div className="pt-4 flex gap-4">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
                   onClick={() => setIsStudentModalOpen(false)}
-                  className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors"
+                  className="w-full sm:flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-3 px-4 bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold rounded-xl transition-colors disabled:opacity-50"
+                  className="w-full sm:flex-1 py-3 px-4 bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold rounded-xl disabled:opacity-50"
                 >
                   {isSubmitting ? "Saving..." : "Save Records"}
                 </button>
@@ -2436,33 +2402,36 @@ const DashboardPortal = () => {
       {/* MODAL EDIT PROFIL ADMIN */}
       {/* ========================================== */}
       {isProfileModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-[#1d3c6a]">
+              <h2 className="text-xl md:text-2xl font-bold text-[#1d3c6a]">
                 Edit Profile
               </h2>
               <button
                 onClick={() => setIsProfileModalOpen(false)}
-                className="text-slate-400 hover:text-red-500 transition-colors"
+                className="text-slate-400 hover:text-red-500"
               >
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleProfileUpdate} className="space-y-5">
+            <form
+              onSubmit={handleProfileUpdate}
+              className="space-y-4 md:space-y-5"
+            >
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                   Username Baru
                 </label>
                 <input
                   type="text"
                   value={profileUsername}
                   onChange={(e) => setProfileUsername(e.target.value)}
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-bold"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0] font-bold"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                   Ganti Password (Opsional)
                 </label>
                 <input
@@ -2470,32 +2439,32 @@ const DashboardPortal = () => {
                   placeholder="Kosongkan jika tidak diganti"
                   value={profilePassword}
                   onChange={(e) => setProfilePassword(e.target.value)}
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] text-slate-700 font-medium placeholder:text-sm"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#38aef0]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
                   Upload Foto Baru (Opsional)
                 </label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => setProfilePhotoFile(e.target.files[0])}
-                  className="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-[#38aef0] hover:file:bg-blue-100 cursor-pointer"
+                  className="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:font-bold file:bg-blue-50 file:text-[#38aef0] hover:file:bg-blue-100 cursor-pointer"
                 />
               </div>
-              <div className="pt-4 flex gap-4">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
                   onClick={() => setIsProfileModalOpen(false)}
-                  className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors"
+                  className="w-full sm:flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-3 px-4 bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold rounded-xl transition-colors disabled:opacity-50"
+                  className="w-full sm:flex-1 py-3 px-4 bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold rounded-xl disabled:opacity-50"
                 >
                   {isSubmitting ? "Menyimpan..." : "Simpan"}
                 </button>
@@ -2509,8 +2478,8 @@ const DashboardPortal = () => {
       {/* MODAL ANIMASI SUKSES GLOBAL */}
       {/* ========================================== */}
       {isSuccessModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-opacity duration-300">
-          <div className="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl transform transition-all scale-100 opacity-100 animate-[bounceIn_0.5s_ease-out] text-center">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl animate-[bounceIn_0.5s_ease-out] text-center">
             <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
               <svg
                 className="h-10 w-10 text-green-500 animate-[pulse_1.5s_ease-in-out_infinite]"
@@ -2526,13 +2495,15 @@ const DashboardPortal = () => {
                 ></path>
               </svg>
             </div>
-            <h3 className="text-2xl font-bold text-slate-800 mb-2">Success!</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">
+              Success!
+            </h3>
             <p className="text-slate-500 text-sm mb-8">
               The data has been updated and synchronized successfully.
             </p>
             <button
               onClick={() => setIsSuccessModalOpen(false)}
-              className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg hover:shadow-green-500/30"
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg"
             >
               Okay
             </button>
