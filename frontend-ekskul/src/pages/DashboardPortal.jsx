@@ -2,6 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+
+// PERBAIKAN IMPORT PDF: Menggunakan penulisan import yang kompatibel dengan Vite
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
 import {
   Search,
   Filter,
@@ -19,7 +24,8 @@ import {
   ChevronRight,
   CalendarDays,
   Save,
-  Menu, // TAMBAHAN UI/UX: Import icon Menu untuk mobile
+  Menu,
+  FileText, // Icon untuk tombol PDF
 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -28,32 +34,19 @@ const DashboardPortal = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("registration");
 
-  // ==========================================
-  // TAMBAHAN UI/UX: STATE UNTUK SIDEBAR MOBILE & MINIMIZE
-  // ==========================================
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false);
 
-  // ==========================================
-  // STATE UNTUK LOADING AWAL (FULL SCREEN)
-  // ==========================================
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // STATE UNTUK PROFIL ADMIN
   const [adminName, setAdminName] = useState("Admin");
   const [adminPhoto, setAdminPhoto] = useState(null);
 
-  // ==========================================
-  // STATE UNTUK MODAL EDIT PROFIL
-  // ==========================================
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileUsername, setProfileUsername] = useState("");
   const [profilePassword, setProfilePassword] = useState("");
   const [profilePhotoFile, setProfilePhotoFile] = useState(null);
 
-  // ==========================================
-  // FUNGSI LOGOUT (MENGHAPUS SESI)
-  // ==========================================
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("username");
@@ -62,18 +55,12 @@ const DashboardPortal = () => {
     navigate("/LoginAdmin");
   };
 
-  // ==========================================
-  // STATE UNTUK DATA
-  // ==========================================
   const [registrations, setRegistrations] = useState([]);
   const [excurOptions, setExcurOptions] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ==========================================
-  // FETCH DATA DARI BACKEND
-  // ==========================================
   const fetchData = async () => {
     setIsLoading(true);
     const token = localStorage.getItem("token");
@@ -135,9 +122,6 @@ const DashboardPortal = () => {
     }
   };
 
-  // ==========================================
-  // PENGECEKAN TOKEN SAAT HALAMAN DIMUAT
-  // ==========================================
   useEffect(() => {
     const verifyTokenAndLoad = async () => {
       const token = localStorage.getItem("token");
@@ -875,14 +859,21 @@ const DashboardPortal = () => {
     }
   };
 
+  // ==========================================
+  // UPDATE ABSENSI EXCEL: Khusus Mendownload Status "Accepted"
+  // ==========================================
   const handleDownloadExcel = async () => {
-    if (processedRegData.length === 0) {
-      alert("Tidak ada data untuk diunduh.");
+    const acceptedData = processedRegData.filter(
+      (item) => item.status === "Accepted",
+    );
+
+    if (acceptedData.length === 0) {
+      alert("Tidak ada data dengan status 'Accepted' untuk diunduh.");
       return;
     }
 
     const excurName = filterExcur || "SEMUA EKSTRAKURIKULER";
-    const teacherNameStr = processedRegData[0].nama_pengajar || "-";
+    const teacherNameStr = acceptedData[0]?.nama_pengajar || "-";
     const teachersListStr = teacherNameStr
       .split(",")
       .map((t) => t.trim())
@@ -944,7 +935,7 @@ const DashboardPortal = () => {
 
     currentRow++;
 
-    processedRegData.forEach((item, index) => {
+    acceptedData.forEach((item, index) => {
       const rowValues = [
         index + 1,
         item.student_name,
@@ -979,6 +970,96 @@ const DashboardPortal = () => {
     }
   };
 
+  // ==========================================
+  // UPDATE SELECTION PDF: Tanpa tanda [], Plus Tanggal dari DB
+  // ==========================================
+  const handleDownloadPDF = () => {
+    const pendingData = processedRegData.filter(
+      (item) => item.status === "Pending Selection",
+    );
+
+    if (pendingData.length === 0) {
+      alert("Tidak ada data dengan status 'Pending Selection' untuk diunduh.");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const excurName = filterExcur || "ALL EXTRACURRICULARS";
+
+    // Menarik data tanggal seleksi milik siswa dari database
+    const dbSelDate =
+      pendingData[0]?.selection_date || "________________________________";
+
+    // Header PDF (Tanpa tanda kurung siku [])
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      `EXTRACURRICULAR SELECTION FORM: ${excurName.toUpperCase()}`,
+      14,
+      20,
+    );
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(
+      "Teacher / Selector Name : ________________________________",
+      14,
+      28,
+    );
+    doc.text(`Date of Selection       : ${dbSelDate}`, 14, 34);
+
+    const tableColumn = [
+      "No.",
+      "Registration Number",
+      "Student Name",
+      "Accept",
+      "Reject",
+      "Notes (Optional)",
+    ];
+    const tableRows = [];
+
+    pendingData.forEach((item, index) => {
+      const rowData = [
+        index + 1,
+        item.no_register,
+        item.student_name,
+        "[   ]",
+        "[   ]",
+        "",
+      ];
+      tableRows.push(rowData);
+    });
+
+    autoTable(doc, {
+      startY: 42,
+      head: [tableColumn],
+      body: tableRows,
+      theme: "grid",
+      headStyles: {
+        fillColor: [29, 60, 106],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        halign: "center",
+      },
+      styles: {
+        fontSize: 10,
+        cellPadding: 4,
+        textColor: [0, 0, 0],
+      },
+      columnStyles: {
+        0: { cellWidth: 15, halign: "center" },
+        1: { cellWidth: 45 },
+        2: { cellWidth: "auto" },
+        3: { cellWidth: 20, halign: "center" },
+        4: { cellWidth: 20, halign: "center" },
+        5: { cellWidth: 40 },
+      },
+    });
+
+    const safeExcurName = excurName.replace(/\s+/g, "_");
+    doc.save(`Selection_Form_${safeExcurName}.pdf`);
+  };
+
   const getStatusBadge = (status) => {
     if (status === "Accepted")
       return (
@@ -999,7 +1080,6 @@ const DashboardPortal = () => {
     );
   };
 
-  // TAMBAHAN UI/UX: Modifikasi tampilan teks pagination agar wrap di mobile
   const renderPagination = (
     currentPage,
     totalPages,
@@ -1076,10 +1156,8 @@ const DashboardPortal = () => {
   }
 
   return (
-    // TAMBAHAN UI/UX: Perubahan struktur div terluar untuk menampung mobile header
     <div className="h-screen flex flex-col md:flex-row overflow-hidden bg-[#eef3f8] font-sans text-[#0f172a] relative">
       {/* ================= MOBILE HEADER ================= */}
-      {/* Ditampilkan hanya di layar kecil (handphone) */}
       <div className="md:hidden flex items-center justify-between bg-white px-6 py-4 shadow-sm z-20">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-[#e3f2fd] flex items-center justify-center overflow-hidden border-2 border-[#1d3c6a]">
@@ -1114,7 +1192,6 @@ const DashboardPortal = () => {
       )}
 
       {/* ================= SIDEBAR ================= */}
-      {/* TAMBAHAN UI/UX: Kelas dinamis untuk slide-in mobile & minimize desktop */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 bg-white shadow-[1px_0_20px_rgb(0,0,0,0.03)] flex flex-col rounded-r-[2rem] transform transition-all duration-300 ease-in-out
           ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
@@ -1122,7 +1199,6 @@ const DashboardPortal = () => {
           ${isSidebarMinimized ? "w-24" : "w-72"}
         `}
       >
-        {/* Tombol Minimize/Maximize (Hanya Desktop) */}
         <button
           onClick={() => setIsSidebarMinimized(!isSidebarMinimized)}
           className="hidden md:flex absolute -right-3.5 top-12 bg-white border border-slate-200 rounded-full p-1.5 shadow-md text-slate-500 hover:text-[#1d3c6a] hover:bg-slate-50 z-50 transition-colors"
@@ -1137,7 +1213,6 @@ const DashboardPortal = () => {
         <div
           className={`p-8 flex flex-col items-center border-b border-slate-100 ${isSidebarMinimized ? "px-2" : ""}`}
         >
-          {/* Tombol Close Sidebar Mobile */}
           <button
             className="md:hidden absolute top-4 right-4 text-slate-400 hover:text-red-500"
             onClick={() => setIsMobileSidebarOpen(false)}
@@ -1206,7 +1281,7 @@ const DashboardPortal = () => {
               title={item.label}
               onClick={() => {
                 setActiveTab(item.id);
-                if (window.innerWidth < 768) setIsMobileSidebarOpen(false); // Auto close sidebar on mobile click
+                if (window.innerWidth < 768) setIsMobileSidebarOpen(false);
               }}
               className={`w-full flex items-center ${isSidebarMinimized ? "justify-center px-0" : "gap-4 px-6"} py-4 rounded-2xl font-bold transition-all ${
                 activeTab === item.id
@@ -1234,14 +1309,11 @@ const DashboardPortal = () => {
         </div>
       </aside>
 
-      {/* ================= MAIN CONTENT ================= */}
-      {/* TAMBAHAN UI/UX: Padding disesuaikan untuk layar kecil (p-4 md:p-10) */}
       <main className="flex-1 p-4 md:p-10 flex flex-col gap-6 md:gap-8 overflow-y-auto">
         {/* ================= TAB REGISTRATIONS ================= */}
         {activeTab === "registration" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6 md:gap-8">
-            {/* TAMBAHAN UI/UX: Header responsif bertumpuk di mobile */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4">
               <div>
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1d3c6a] tracking-tight">
                   Registration Data
@@ -1250,12 +1322,21 @@ const DashboardPortal = () => {
                   Manage extracurricular registrations and selections.
                 </p>
               </div>
-              <button
-                onClick={handleDownloadExcel}
-                className="w-full sm:w-auto justify-center bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-green-600/30 transition-all flex items-center gap-2"
-              >
-                <Download size={20} /> Export to Excel
-              </button>
+
+              <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+                <button
+                  onClick={handleDownloadExcel}
+                  className="w-full sm:w-auto justify-center bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-green-600/30 transition-all flex items-center gap-2"
+                >
+                  <Download size={20} /> Absensi (Excel)
+                </button>
+                <button
+                  onClick={handleDownloadPDF}
+                  className="w-full sm:w-auto justify-center bg-[#1d3c6a] hover:bg-[#152c4f] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-blue-600/30 transition-all flex items-center gap-2"
+                >
+                  <FileText size={20} /> Extracurricular Selection
+                </button>
+              </div>
             </div>
 
             <div className="bg-white rounded-[2rem] p-4 md:p-6 shadow-sm border border-slate-100 flex flex-col gap-4 md:gap-6">
@@ -1272,7 +1353,6 @@ const DashboardPortal = () => {
                   className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#38aef0] focus:bg-white transition-all font-medium text-slate-700"
                 />
               </div>
-              {/* TAMBAHAN UI/UX: Layout filter diubah menjadi grid yang rapih di mobile & desktop */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
@@ -1329,7 +1409,6 @@ const DashboardPortal = () => {
 
             <div className="bg-white rounded-[2rem] shadow-sm overflow-hidden border border-slate-100 flex flex-col">
               <div className="overflow-x-auto">
-                {/* TAMBAHAN UI/UX: Tambah whitespace-nowrap pada thead untuk menghindari header terlipat aneh */}
                 <table className="w-full text-left border-collapse whitespace-nowrap min-w-max">
                   <thead>
                     <tr className="bg-[#1d3c6a] text-white text-xs uppercase tracking-wider">
